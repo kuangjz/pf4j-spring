@@ -13,20 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.pf4j.demo.hello;
-
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+package com.pf4j.demo.hello;
 
 /**
  * @author Decebal Suiu
  */
-@Configuration
-public class SpringConfiguration {
+public interface MessageProvider2 {
 
-    @Bean
-    public MessageProvider messageProvider() {
-        return new HelloMessageProvider();
-    }
+    String getMessage();
 
 }

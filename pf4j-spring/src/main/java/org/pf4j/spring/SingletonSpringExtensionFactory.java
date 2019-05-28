@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.pf4j.spring;
+package org1.pf4j.spring;
 
 import org.pf4j.PluginManager;
 
@@ -52,10 +52,12 @@ public class SingletonSpringExtensionFactory extends SpringExtensionFactory {
 
     @Override
     public Object create(Class<?> extensionClass) {
+//System.out.println("000000000============>"+extensionClass);
         String extensionClassName = extensionClass.getName();
         if (cache.containsKey(extensionClassName)) {
             return cache.get(extensionClassName);
         }
+//        System.out.println("11111111111============>"+extensionClass);
 
         Object extension = super.create(extensionClass);
         if (extensionClassNames.isEmpty() || extensionClassNames.contains(extensionClassName)) {

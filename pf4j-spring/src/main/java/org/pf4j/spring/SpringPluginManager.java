@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.pf4j.spring;
+package org1.pf4j.spring;
 
 import org.pf4j.DefaultPluginManager;
 import org.pf4j.ExtensionFactory;
@@ -44,6 +44,7 @@ public class SpringPluginManager extends DefaultPluginManager implements Applica
         return new SpringExtensionFactory(this);
     }
 
+
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
         this.applicationContext = applicationContext;
@@ -53,11 +54,12 @@ public class SpringPluginManager extends DefaultPluginManager implements Applica
         return applicationContext;
     }
 
-    /**
+    /**菜单
      * This method load, start plugins and inject extensions in Spring
      */
     @PostConstruct
     public void init() {
+        System.out.println("=========init Pluginmanager=========="+this.applicationContext);
         loadPlugins();
         startPlugins();
 
@@ -65,5 +67,10 @@ public class SpringPluginManager extends DefaultPluginManager implements Applica
         ExtensionsInjector extensionsInjector = new ExtensionsInjector(this, beanFactory);
         extensionsInjector.injectExtensions();
     }
+//    @Override
+//    protected PluginWrapper loadPluginFromPath(Path pluginPath) throws PluginException {
+//        PluginWrapper wrapper = super.loadPluginFromPath(pluginPath);
+//        wrapper
+//    }
 
 }

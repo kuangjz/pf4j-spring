@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.pf4j.spring;
+package org1.pf4j.spring;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -13,29 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.pf4j.demo;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org1.pf4j.demo.api.Greeting;
-
-import java.util.List;
+package org1.pf4j.demo.hello;
 
 /**
  * @author Decebal Suiu
  */
 //@Component
-public class Greetings {
+public class HelloMessageProvider implements MessageProvider {
 
-    @Autowired
-    private List<Greeting> greetings;
-
-    public void printGreetings() {
-//        ContextUtils a=null;
-
-        System.out.println(String.format("Found %d extensions for extension point '%s'", greetings.size(), Greeting.class.getName()));
-        for (Greeting greeting : greetings) {
-            System.out.println(">>> " + greeting.getGreeting() + " ["+greeting);
-        }
+    @Override
+    public String getMessage() {
+        return "Hello";
     }
 
 }

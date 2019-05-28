@@ -13,17 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.pf4j.demo.hello;
+package org1.pf4j.demo.hello;
 
 /**
  * @author Decebal Suiu
  */
-//@Component
-public class HelloMessageProvider implements MessageProvider {
+public interface MessageProvider {
 
-    @Override
-    public String getMessage() {
-        return "Hello";
-    }
+    String getMessage();
 
 }

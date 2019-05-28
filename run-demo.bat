@@ -11,17 +11,18 @@ mkdir demo-dist
 mkdir demo-dist\plugins
 
 REM copy artifacts to demo-dist folder
-xcopy demo\app\target\pf4j-spring-demo-app-*.zip demo-dist /s /i
+xcopy demo\app\target\pf4j-spring-demo-app-*.jar demo-dist /s /i
 xcopy demo\plugins\plugin1\target\pf4j-spring-demo-plugin1-*.zip demo-dist\plugins /s
 xcopy demo\plugins\plugin2\target\pf4j-spring-demo-plugin2-*.zip demo-dist\plugins /s
+xcopy demo\plugins\plugin3\target\pf4j-spring-demo-plugin3-*.jar demo-dist\plugins /s
 xcopy demo\plugins\enabled.txt demo-dist\plugins /s
 xcopy demo\plugins\disabled.txt demo-dist\plugins /s
 
 cd demo-dist
 
 REM unzip app
-jar xf pf4j-spring-demo-app-*.zip
-del pf4j-spring-demo-app-*.zip
+REM deprecated:  jar xf pf4j-spring-demo-app-*.zip
+REM deprecated: del pf4j-spring-demo-app-*.zip
 
 REM run demo
 rename pf4j-spring-demo-app-*-SNAPSHOT.jar pf4j-spring-demo.jar

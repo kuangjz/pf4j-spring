@@ -16,7 +16,7 @@
 package org.pf4j.demo;
 
 import org.pf4j.Extension;
-import org.pf4j.demo.api.Greeting;
+import org1.pf4j.demo.api.Greeting;
 
 /**
  * @author Decebal Suiu

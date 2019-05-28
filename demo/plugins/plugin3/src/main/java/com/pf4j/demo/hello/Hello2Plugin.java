@@ -13,14 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.pf4j.demo.hello;
+package com.pf4j.demo.hello;
 
+import org.pf4j.spring.SpringPluginManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.pf4j.Extension;
 import org.pf4j.PluginWrapper;
-import org.pf4j.demo.api.Greeting;
+import org1.pf4j.demo.api.Greeting;
 import org.pf4j.spring.SpringPlugin;
 
 /**
@@ -28,44 +29,46 @@ import org.pf4j.spring.SpringPlugin;
  *
  * @author Decebal Suiu
  */
-public class HelloPlugin extends SpringPlugin {
+public class Hello2Plugin extends SpringPlugin {
 
-    public HelloPlugin(PluginWrapper wrapper) {
+    public Hello2Plugin(PluginWrapper wrapper) {
         super(wrapper);
     }
 
     @Override
     public void start() {
-        System.out.println("HelloPlugin.start()");
+        System.out.println("Hello2Plugin.start()...." + this.wrapper.getPluginPath());
     }
 
     @Override
     public void stop() {
-        System.out.println("HelloPlugin.stop()");
+        System.out.println("Hello2Plugin.stop()");
         super.stop(); // to close applicationContext
     }
 
     @Override
     protected ApplicationContext createApplicationContext() {
+        ApplicationContext applicationContext1 = ((SpringPluginManager)this.wrapper.getPluginManager()).getApplicationContext();
         AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext();
+        applicationContext.setParent(applicationContext1);
+        System.out.println(">>>>>>hello2222222222>>>>>>>>>"+applicationContext.getParent());
         applicationContext.setClassLoader(getWrapper().getPluginClassLoader());
         applicationContext.register(SpringConfiguration.class);
         applicationContext.refresh();
-
         return applicationContext;
     }
 
     @Extension(ordinal=1)
-    public static class HelloGreeting implements Greeting {
+    public static class Hello2Greeting implements Greeting {
 
         @Autowired
-        private MessageProvider messageProvider;
+        private MessageProvider2 messageProvider2;
 
         @Override
         public String getGreeting() {
 //            return "Hello";
             // complicate a little bit the code
-           return messageProvider.getMessage();
+           return messageProvider2.getMessage();
         }
 
     }

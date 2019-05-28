@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.pf4j.spring;
+package org1.pf4j.spring;
 
 import org.pf4j.PluginManager;
 import org.pf4j.PluginWrapper;
@@ -41,6 +41,7 @@ public class ExtensionsInjector {
 
     public void injectExtensions() {
         // add extensions from classpath (non plugin)
+//        System.out.println(">>>>>>>>>>>="+getClass().getClassLoader() +"==="+ ((SpringPluginManager)pluginManager).getApplicationContext().getClassLoader());
         Set<String> extensionClassNames = pluginManager.getExtensionClassNames(null);
         for (String extensionClassName : extensionClassNames) {
             try {

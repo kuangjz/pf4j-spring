@@ -15,26 +15,27 @@
  */
 package org.pf4j.demo;
 
-import org.pf4j.spring.SpringPluginManager;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.DependsOn;
+import org.springframework.beans.factory.annotation.Autowired;
+import org1.pf4j.demo.api.Greeting;
+
+import java.util.List;
 
 /**
  * @author Decebal Suiu
  */
-@Configuration
-public class SpringConfiguration {
+//@Component
+public class Greetings2 {
 
-    @Bean
-    public SpringPluginManager pluginManager() {
-        return new SpringPluginManager();
-    }
+    @Autowired
+    private List<Greeting> greetings;
 
-    @Bean
-    @DependsOn("pluginManager")
-    public Greetings greetings() {
-        return new Greetings();
+    public void printGreetings() {
+//        ContextUtils a=null;
+
+        System.out.println(String.format("Found %d extensions for extension point '%s'", greetings.size(), Greeting.class.getName()));
+        for (Greeting greeting : greetings) {
+            System.out.println("Greetings2>>> " + greeting.getGreeting() + " ["+greeting);
+        }
     }
 
 }
