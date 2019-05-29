@@ -16,6 +16,7 @@
 package org.pf4j.demo;
 
 import org.apache.commons.lang.StringUtils;
+import org.pf4j.spring.PluginManagerWithContext;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ApplicationContext;
@@ -64,7 +65,7 @@ public class Boot {
         System.out.println(StringUtils.repeat("#", 40));
     }
     @Bean
-    public SpringBootPluginManager pluginManager() {
+    public PluginManagerWithContext pluginManager() {
         SpringBootPluginManager pm = new SpringBootPluginManager();
 //        pm.init();
         return pm;

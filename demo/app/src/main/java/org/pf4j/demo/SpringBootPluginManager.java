@@ -1,118 +1,246 @@
 package org.pf4j.demo;
 
-import org.pf4j.ExtensionFactory;
-import org.pf4j.spring.SingletonSpringExtensionFactory;
-import org.pf4j.spring.SpringPluginManager;
+import org.pf4j.*;
+import org.pf4j.spring.PluginManagerWithContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory;
-
+import org.springframework.context.ApplicationContext;
 import javax.annotation.PostConstruct;
-import java.io.*;
-import java.net.JarURLConnection;
-import java.net.URL;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.jar.JarEntry;
-import java.util.jar.JarFile;
 
-public class SpringBootPluginManager extends SpringPluginManager {
+public class SpringBootPluginManager implements PluginManagerWithContext {
     private static final Logger log = LoggerFactory.getLogger(SpringBootPluginManager.class);
-    public SpringBootPluginManager() {
-    }
+    private ApplicationContext applicationContext;
+    private SystemPluginManager systemPluginManager;
+    private ExtendedPluginManager extendedPluginManager;
 
-    public SpringBootPluginManager(Path pluginsRoot) {
-        super(pluginsRoot);
-    }
-    @Override
-    protected ExtensionFactory createExtensionFactory() {
-        return new SingletonSpringExtensionFactory(this);
+    public SpringBootPluginManager() {
     }
 
     @PostConstruct
     public void init() {
-        System.out.println(String.format("{%s}\t=========init Pluginmanager=========="+this.getApplicationContext(),getClass().getName()));
-
-//        loadSystemPlugins();
-
-        loadPlugins();
-        startPlugins();
-
+        System.out.println(String.format("{%s}'init()\t=========ApplicationContext.class {%s}==========",getClass().getName(),this.getApplicationContext()));
         AbstractAutowireCapableBeanFactory beanFactory = (AbstractAutowireCapableBeanFactory) this.getApplicationContext().getAutowireCapableBeanFactory();
-        SpringBootExtensionsInjector extensionsInjector = new SpringBootExtensionsInjector(this, beanFactory);
-        extensionsInjector.injectExtensions();
+
+        systemPluginManager = new SystemPluginManager();
+        systemPluginManager.setApplicationContext(this.getApplicationContext());
+
+        systemPluginManager.loadPlugins();
+        systemPluginManager.startPlugins();
+        SpringBootExtensionsInjector systemPluginExtensionsInjector = new SpringBootExtensionsInjector(systemPluginManager, beanFactory);
+        systemPluginExtensionsInjector.injectExtensions();
+
+        extendedPluginManager = new ExtendedPluginManager(systemPluginManager);
+        extendedPluginManager.setApplicationContext(this.getApplicationContext());
+        extendedPluginManager.loadPlugins();
+        extendedPluginManager.startPlugins();
+        SpringBootExtensionsInjector extendedExtensionsInjector = new SpringBootExtensionsInjector(extendedPluginManager, beanFactory);
+        extendedExtensionsInjector.injectExtensions();
+    }
+    @Override
+    public PluginManager getSystemPluginManager(){
+        return this.systemPluginManager;
+    }
+    @Override
+    public PluginManager getExtendedPluginManager(){
+        return this.extendedPluginManager;
     }
 
-    protected void loadSystemPlugins0(){
-        ClassLoader cl = getClass().getClassLoader();
-
+    @Override
+    public List<PluginWrapper> getPlugins() {
+        List<PluginWrapper> pluginWrapperList = this.systemPluginManager.getPlugins();
+        pluginWrapperList.addAll(this.extendedPluginManager.getPlugins());
+        return pluginWrapperList;
     }
 
-    private Map<String, URL> loadSystemPlugins() {
-        Map<String, URL> result = new LinkedHashMap<>();
-        try {
-            Enumeration<URL> urls = getClass().getClassLoader().getResources("META-INF/extensions.idx");
-            if(!urls.hasMoreElements()){
-                return result;
-            }
-            Path systemPluginsDirectory = (new File(".system_plugins")).toPath();
-            Map<URL,Long> cachedUnJarFiles = new HashMap<>();
+    @Override
+    public List<PluginWrapper> getPlugins(PluginState pluginState) {
+        List<PluginWrapper> pluginWrapperList = this.systemPluginManager.getPlugins(pluginState);
+        pluginWrapperList.addAll(this.extendedPluginManager.getPlugins(pluginState));
+        return pluginWrapperList;
+    }
 
-            while (urls.hasMoreElements()) {
-                URL url = urls.nextElement();
-                String[] jarSegments = url.toString().split("!/");
-                int jarLevels = 0;
-                for(int i=0,j=jarSegments.length;i<j;i++){
-                    if (jarSegments[i].endsWith(".jar")) {
-                        jarLevels++;
-                    }
-                }
-                if (jarLevels==2){
-                    URL urlJar = new URL(jarSegments[0]+"!/");
-                    JarFile  jarFile = ((JarURLConnection)urlJar.openConnection()).getJarFile();
-                    JarEntry jarEntry= jarFile.getJarEntry(jarSegments[1]);
-                    String filename = jarEntry.getName();
-                    int separatorIndex = filename.lastIndexOf("/");
-                    if (separatorIndex>-1){
-                        filename = filename.substring(separatorIndex+1);
-                    }
+    @Override
+    public List<PluginWrapper> getResolvedPlugins() {
+        List<PluginWrapper> pluginWrapperList = this.systemPluginManager.getResolvedPlugins();
+        pluginWrapperList.addAll(this.extendedPluginManager.getResolvedPlugins());
+        return pluginWrapperList;
+    }
 
-                    File file = new File(systemPluginsDirectory.toFile(), filename);
-                    if (file.exists()){
-                        file.delete();
-                    }
+    @Override
+    public List<PluginWrapper> getUnresolvedPlugins() {
+        List<PluginWrapper> pluginWrapperList = this.systemPluginManager.getUnresolvedPlugins();
+        pluginWrapperList.addAll(this.extendedPluginManager.getUnresolvedPlugins());
+        return pluginWrapperList;
+    }
 
-                    // create intermediary directories - sometimes zip don't add them
-                    File dir = new File(file.getParent());
-                    dir.mkdirs();
-                    byte[] bytes = new byte[1024];
-                    long lastModifiedTime = jarEntry.getLastModifiedTime().toMillis();
-//                    file.setLastModified(lastModifiedTime);
-                    try(BufferedInputStream in = new BufferedInputStream(jarFile.getInputStream(jarEntry));
-                        BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(file));) {
-                        int len = in.read(bytes, 0, bytes.length);
-                        while (len != -1) {
-                            out.write(bytes, 0, len);
-                            len = in.read(bytes, 0, bytes.length);
-                        }
-                        in.close();
-                        out.flush();
-                    }catch (Exception e){
-                        e.printStackTrace();
-                    }
-                    file.setLastModified(lastModifiedTime);
-                    System.out.println(String.format("{%s}'loadSystemPlugins\t++++++++++++++ {%s} ok!",getClass().getName(),url));
-                    super.loadPlugin(file.toPath());
-//                    this.
-                }
-//                System.out.println(String.format("{%s}\t+++++++springbootpluginmanager222222+++++++ resource=["+url + "] ",getClass().getName()));
-            }
-//            result.put(null, bucket);
-        } catch (Exception e) {
-            e.printStackTrace(System.out);
-            log.error("error",e);
+    @Override
+    public List<PluginWrapper> getStartedPlugins() {
+        List<PluginWrapper> pluginWrapperList = this.systemPluginManager.getStartedPlugins();
+        pluginWrapperList.addAll(this.extendedPluginManager.getStartedPlugins());
+        return pluginWrapperList;
+    }
+
+    @Override
+    public PluginWrapper getPlugin(String pluginId) {
+        PluginWrapper pluginWrapper = this.systemPluginManager.getPlugin(pluginId);
+        if(pluginWrapper == null) {
+            pluginWrapper = this.extendedPluginManager.getPlugin(pluginId);
         }
+        return pluginWrapper;
+    }
 
-        return result;
+    @Override
+    public void loadPlugins() {
+
+    }
+
+    @Override
+    public String loadPlugin(Path pluginPath) {
+        return null;
+    }
+
+    @Override
+    public void startPlugins() {
+
+    }
+
+    @Override
+    public PluginState startPlugin(String pluginId) {
+        return null;
+    }
+
+    @Override
+    public void stopPlugins() {
+
+    }
+
+    @Override
+    public PluginState stopPlugin(String pluginId) {
+        return null;
+    }
+
+    @Override
+    public boolean unloadPlugin(String pluginId) {
+        return false;
+    }
+
+    @Override
+    public boolean disablePlugin(String pluginId) {
+        return false;
+    }
+
+    @Override
+    public boolean enablePlugin(String pluginId) {
+        return false;
+    }
+
+    @Override
+    public boolean deletePlugin(String pluginId) {
+        return false;
+    }
+
+    @Override
+    public ClassLoader getPluginClassLoader(String pluginId) {
+        return null;
+    }
+
+    @Override
+    public List<Class<?>> getExtensionClasses(String pluginId) {
+        return null;
+    }
+
+    @Override
+    public <T> List<Class<T>> getExtensionClasses(Class<T> type) {
+        return null;
+    }
+
+    @Override
+    public <T> List<Class<T>> getExtensionClasses(Class<T> type, String pluginId) {
+        return null;
+    }
+
+    @Override
+    public <T> List<T> getExtensions(Class<T> type) {
+        return null;
+    }
+
+    @Override
+    public <T> List<T> getExtensions(Class<T> type, String pluginId) {
+        return null;
+    }
+
+    @Override
+    public List getExtensions(String pluginId) {
+        return null;
+    }
+
+    @Override
+    public Set<String> getExtensionClassNames(String pluginId) {
+        return null;
+    }
+
+    @Override
+    public ExtensionFactory getExtensionFactory() {
+        return null;
+    }
+
+    @Override
+    public RuntimeMode getRuntimeMode() {
+        return null;
+    }
+
+    @Override
+    public PluginWrapper whichPlugin(Class<?> clazz) {
+        ClassLoader classLoader = clazz.getClassLoader();
+        List<PluginWrapper> resolvedPlugins = this.getResolvedPlugins();
+        for (PluginWrapper plugin : resolvedPlugins) {
+            if (plugin.getPluginClassLoader() == classLoader) {
+                return plugin;
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public void addPluginStateListener(PluginStateListener listener) {
+
+    }
+
+    @Override
+    public void removePluginStateListener(PluginStateListener listener) {
+
+    }
+
+    @Override
+    public void setSystemVersion(String version) {
+
+    }
+
+    @Override
+    public String getSystemVersion() {
+        return null;
+    }
+
+    @Override
+    public Path getPluginsRoot() {
+        return this.extendedPluginManager.getPluginsRoot();
+    }
+
+    @Override
+    public VersionManager getVersionManager() {
+        return null;
+    }
+
+    @Override
+    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+        this.applicationContext = applicationContext;
+    }
+
+    public ApplicationContext getApplicationContext() {
+        return applicationContext;
     }
 }

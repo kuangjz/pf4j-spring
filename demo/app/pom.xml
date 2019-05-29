@@ -123,11 +123,11 @@
             <artifactId>pf4j-spring-demo-api</artifactId>
             <version>${project.version}</version>
         </dependency>
-<!--        <dependency>-->
-<!--            <groupId>org.pf4j.demo</groupId>-->
-<!--            <artifactId>pf4j-spring-demo-plugin3</artifactId>-->
-<!--            <version>${project.version}</version>-->
-<!--        </dependency>-->
+        <dependency>
+            <groupId>org.pf4j.demo</groupId>
+            <artifactId>pf4j-spring-demo-plugin3</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>javax.annotation</groupId>
             <artifactId>javax.annotation-api</artifactId>

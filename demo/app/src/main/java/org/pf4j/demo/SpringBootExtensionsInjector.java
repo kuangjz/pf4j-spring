@@ -45,11 +45,17 @@ public class SpringBootExtensionsInjector extends ExtensionsInjector {
         for (String extensionClassName : extensionClassNames) {
                 try {
                     log.debug("Register extension '{}' as bean", extensionClassName);
-                    System.out.println(String.format("{%s}\tRegister extension '{%s}'as bean",getClass().getName(), extensionClassName));
+//                    System.out.println(String.format("{%s}\tRegister extension '{%s}'as bean start....",toString2(), extensionClassName));
                     Class<?> extensionClass = ((SpringPluginManager)pluginManager).getApplicationContext().getClassLoader().loadClass(extensionClassName);
-                    System.out.println(String.format("{%s}\t'{%s}'isMembeClass{%s}",getClass().getName(), extensionClassName,extensionClass.isMemberClass()));
+                    System.out.println(String.format("{%s}\t'{%s}'isMembeClass{%s}",toString2(), extensionClassName,extensionClass.isMemberClass()));
+                    /**
+                     * extension是classloader根据classpath中的extension.idx文件内容来进行加载，classpath中包含class文件和jar文件。
+                     * 根据我们的要求：纯粹的extension（由classpath中获得的）不能是内部类，而plugin中的extension必须是内部类，
+                     * 因此extensionClass如果不是内部类，则进行加载，否则该extension应该是在plugin中定义的，由plugin进行加载注入到spring中
+                     * */
                     if(!extensionClass.isMemberClass()) {
-                        registerExtension(extensionClass);
+                        registerExtension0(extensionClass);
+                        System.out.println(String.format("{%s}\tRegister extension '{%s}'as bean success....",toString2(), extensionClassName));
                     }
                 } catch (ClassNotFoundException e) {
                     log.error(e.getMessage(), e);
@@ -60,15 +66,17 @@ public class SpringBootExtensionsInjector extends ExtensionsInjector {
         List<PluginWrapper> startedPlugins = pluginManager.getStartedPlugins();
         for (PluginWrapper plugin : startedPlugins) {
             log.debug("Registering extensions of the plugin '{}' as beans", plugin.getPluginId());
-            System.out.println(String.format("{%s}\tRegistering extensions of the plugin '{%s}' as beans",getClass().getName(), plugin.getPluginId()));
+            System.out.println(String.format("{%s}\tRegistering extensions of the plugin '{%s}' as beans",toString2(), plugin.getPluginId()));
             extensionClassNames = pluginManager.getExtensionClassNames(plugin.getPluginId());
             for (String extensionClassName : extensionClassNames) {
                 try {
                     log.debug("Register extension '{}' as bean", extensionClassName);
                     Class<?> extensionClass = plugin.getPluginClassLoader().loadClass(extensionClassName);
                     registerExtension(extensionClass);
-                    System.out.println(String.format("{%s}\tRegistering extensions of the plugin '{%s}' as beans {%s}",getClass().getName(), plugin.getPluginId(),extensionClass));
-
+                    System.out.println(String.format("{%s}\tRegistering extensions of the plugin '{%s}' as beans {%s}",toString2(), plugin.getPluginId(),extensionClass));
+                    /**
+                     * 如果插件类型是SpringPlugin，则必须加载该插件中的各种资源：bean/component/controller/restcontroller/service等
+                     * */
                     if (plugin.getPlugin() instanceof SpringPlugin) {
                         //register all web-related beans
                         registerWebBeans(plugin);
@@ -82,14 +90,15 @@ public class SpringBootExtensionsInjector extends ExtensionsInjector {
     }
     private void registerWebBeans(PluginWrapper plugin) {
         try {
-            ApplicationContext _applicationContext = ((SpringBootPluginManager)this.pluginManager).getApplicationContext();
+            ApplicationContext _applicationContext = ((SpringPluginManager)this.pluginManager).getApplicationContext();
             AnnotationConfigServletWebServerApplicationContext applicationContext = (AnnotationConfigServletWebServerApplicationContext)_applicationContext;
+            /**
+             * 使用plugin的classloader加载插件中的类并注册到plugin的context中
+             * */
             AnnotationConfigApplicationContext _appCtxPlugin = (AnnotationConfigApplicationContext)((SpringPlugin)plugin.getPlugin()).getApplicationContext();
             ClassLoader pluginClassLoader = plugin.getPluginClassLoader();
-            //新建classloader 核心
             //获取导入的jar的controller  service  dao 等类，并且创建BeanDefinition
-//                AnnotationConfigApplicationContext applicationContext = (AnnotationConfigApplicationContext) this.getApplicationContext();
-            Set<BeanDefinition> beanDefinitions = getBeanDefinitions(applicationContext,plugin);
+            Set<BeanDefinition> beanDefinitions = getBeanDefinitions(plugin);
 
 //            applicationContext.refresh();
 //            String[] beanNames = applicationContext.getBeanDefinitionNames();
@@ -97,31 +106,28 @@ public class SpringBootExtensionsInjector extends ExtensionsInjector {
 //            for (String beanName : beanNames) {
 //                System.out.println("**************=>"+beanName);
 //            }
-
-            //修改BeanFactory的ClassLoader
-//            if(plugin.getPlugin() instanceof SpringPlugin){
-//                ((SpringPlugin) plugin.getPlugin()).getApplicationContext()
-//            }
-//            ClassLoader old = applicationContext.getDefaultListableBeanFactory().getBeanClassLoader();
-//            applicationContext.getDefaultListableBeanFactory().setBeanClassLoader(pluginClassLoader);
-
             beanDefinitions.forEach(item -> {
                 //根据beanDefinition通过BeanFactory注册bean，如果已经存在该bean，则先行删除后注册
-//                System.out.println(String.format("{%s}\t>>>>>>>>>>>>>item bean "+item.getBeanClassName()+ " isInterface="+item.getClass().isInterface(),getClass().getName()));
+//                System.out.println(String.format("{%s}\t>>>>>>>>>>>>>item bean "+item.getBeanClassName()+ " isInterface="+item.getClass().isInterface(),toString2()));
                 boolean isInterface =false;
                 try {
                     Class cn = Class.forName(item.getBeanClassName(), false, pluginClassLoader);
                     isInterface = cn.isInterface();
-                    System.out.println(String.format("{%s}'registerWebBeans\t>>>>>>>>>>>>>item bean {%s} isInterface="+cn.isInterface(),getClass().getName(),item.getBeanClassName()));
+                    System.out.println(String.format("{%s}'registerWebBeans\t>>>>>>>>>>>>>item bean {%s} isInterface="+cn.isInterface(),toString2(),item.getBeanClassName()));
 
                 }catch (Exception e){}
 
+
+                /**
+                 * 如果class是接口，则不注册到context中。
+                 * 如果bean的定义已经在context中注册了，则先删后注册
+                 * */
                 if(!isInterface) {
                     if (_appCtxPlugin.getDefaultListableBeanFactory().containsBeanDefinition(item.getBeanClassName())) {
-                        System.out.println(String.format("{%s}'registerWebBeans\t>>>>>>>>>>>>>remove bean {%s}",getClass().getName(),item.getBeanClassName()));
+                        System.out.println(String.format("{%s}'registerWebBeans\t>>>>>>>>>>>>>remove bean {%s}",toString2(),item.getBeanClassName()));
                         _appCtxPlugin.getDefaultListableBeanFactory().removeBeanDefinition(item.getBeanClassName());
                     }
-                    System.out.println(String.format("{%s}'registerWebBeans\t>>>>>>>>>>>>>registerBeanDefinition {%s}",getClass().getName(),item.getBeanClassName()));
+                    System.out.println(String.format("{%s}'registerWebBeans\t>>>>>>>>>>>>>registerBeanDefinition {%s}",toString2(),item.getBeanClassName()));
                     _appCtxPlugin.getDefaultListableBeanFactory().registerBeanDefinition(item.getBeanClassName(), item);
                 }
             });
@@ -154,34 +160,25 @@ public class SpringBootExtensionsInjector extends ExtensionsInjector {
                                     requestMappingHandlerMapping.unregisterMapping(mapping_info);
                                     requestMappingHandlerMapping.registerMapping(mapping_info, proxy, m_d);
                                 }
-
                             }
-
                         } catch (Exception e) {
                             e.printStackTrace();
                         }
-
                     }
                 } catch (ClassNotFoundException e) {
                     e.printStackTrace();
                 }
             });
-//            applicationContext.getDefaultListableBeanFactory().setBeanClassLoader(old);
         }catch (Exception e){
             e.printStackTrace();
         }
-
     }
 
-    private Set<BeanDefinition> getBeanDefinitions(ApplicationContext applicationContext, PluginWrapper plugin) throws Exception {
+    private Set<BeanDefinition> getBeanDefinitions(PluginWrapper plugin) throws Exception {
         Set<BeanDefinition> candidates = new LinkedHashSet<>();
-
-//        ClassLoader old = classLoader;
-//        ClassLoader classLoader = applicationContext.getClassLoader();
-//        URLClassLoader cl = new URLClassLoader(new URL[]{(new File(plugin.getPluginPath()+"/classes")).toURI().toURL()},classLoader);
         ClassLoader cl = plugin.getPluginClassLoader();
         String pluginBasePath = plugin.getPluginPath().toUri().toURL().toExternalForm();
-        System.out.println(String.format("{%s}'getBeanDefinitions\tplugin["+plugin+"] basepath=["+pluginBasePath+"]",getClass().getName()));
+        System.out.println(String.format("{%s}'getBeanDefinitions\tplugin["+plugin+"] basepath=["+pluginBasePath+"]",toString2()));
         ResourcePatternResolver resourcePatternResolver = new PathMatchingResourcePatternResolver(cl){
             @Override
             public Resource[] getResources(String locationPattern) throws IOException {
@@ -190,52 +187,21 @@ public class SpringBootExtensionsInjector extends ExtensionsInjector {
                     boolean flag =false;
                     try {
                         flag = e.getURL().toExternalForm().indexOf(pluginBasePath) > -1;
-//                        System.out.println(String.format("{%s}\t++++++++++ resource=[" + e + "] basepath =[" + pluginBasePath + "] isFromPlugin[" + flag + "]", getClass().getName()));
+//                        System.out.println(String.format("{%s}\t++++++++++ resource=[" + e + "] basepath =[" + pluginBasePath + "] isFromPlugin[" + flag + "]", toString2()));
                     }catch (Exception e1) {
                         e1.printStackTrace();
                     }
                 return flag;
                 }).toArray(Resource[]::new);
             }
-//            @Override
-//            protected Set<Resource> doFindAllClassPathResources(String path) throws IOException {
-//                Set<Resource> result = new LinkedHashSet<>(16);
-//                ClassLoader cl = getClassLoader();
-//                Enumeration<URL> resourceUrls = (cl != null ? cl.getResources(path) : ClassLoader.getSystemResources(path));
-//                while (resourceUrls.hasMoreElements()) {
-//                    URL url = resourceUrls.nextElement();
-//                    System.out.println("++++++++++ url="+url + "] isFromPlugin="+(url.toString().indexOf(pluginBasePath)>-1));
-//                    result.add(convertClassLoaderURL(url));
-//                }
-//                return result;
-//            }
-//            @Override
-//            protected Resource[] findPathMatchingResources(String locationPattern) throws IOException {
-//                String rootDirPath = determineRootDir(locationPattern);
-//                String subPattern = locationPattern.substring(rootDirPath.length());
-//                Resource[] rootDirResources = getResources(rootDirPath);
-//                Set<Resource> result = new LinkedHashSet<>(16);
-//                for (Resource rootDirResource : rootDirResources) {
-//                    rootDirResource = resolveRootDirResource(rootDirResource);
-//                    URL rootDirUrl = rootDirResource.getURL();
-//System.out.println("++++++++++ rootDirResource="+rootDirResource + "] isFromPlugin="+(rootDirResource.toString().indexOf(pluginBasePath)>-1));
-//                    if (ResourceUtils.isJarURL(rootDirUrl) || isJarResource(rootDirResource)) {
-////                        result.addAll(doFindPathMatchingJarResources(rootDirResource, rootDirUrl, subPattern));
-//                    }
-//                    else {
-//                        result.addAll(doFindPathMatchingFileResources(rootDirResource, subPattern));
-//                    }
-//                }
-//                return result.toArray(new Resource[0]);
-//            }
         };
         Resource[] resources = resourcePatternResolver.getResources("classpath*:/**/*.class");
 
         MetadataReaderFactory metadata=new SimpleMetadataReaderFactory();
-        System.out.println(String.format("{%s}'getBeanDefinitions\t=================resources found["+resources.length+"]",getClass().getName()));
+        System.out.println(String.format("{%s}'getBeanDefinitions\t=================resources found["+resources.length+"]",toString2()));
         for(Resource resource:resources) {
-            System.out.println(String.format("{%s}'getBeanDefinitions\t %s",getClass().getName(),resource.toString()));
-//            System.out.println(String.format("{%s}\t=================resource["+resource.getFilename()+"]",getClass().getName()));
+            System.out.println(String.format("{%s}'getBeanDefinitions\t %s",toString2(),resource.toString()));
+//            System.out.println(String.format("{%s}\t=================resource["+resource.getFilename()+"]",toString2()));
             MetadataReader metadataReader=metadata.getMetadataReader(resource);
             ScannedGenericBeanDefinition sbd = new ScannedGenericBeanDefinition(metadataReader);
             sbd.setResource(resource);
@@ -248,11 +214,11 @@ public class SpringBootExtensionsInjector extends ExtensionsInjector {
 
             RestController c2= Class.forName(classname,false,cl).getAnnotation(RestController.class);
 
-//            System.out.println(String.format("{%s}\t===============c2="+c2,getClass().getName()));
+//            System.out.println(String.format("{%s}\t===============c2="+c2,toString2()));
             Service s=Class.forName(classname,false,cl).getAnnotation(Service.class);
             Component component=Class.forName(classname,false,cl).getAnnotation(Component.class);
 //            if(c!=null ||s!=null ||component!=null)
-//                System.out.println(String.format("{%s}\t %s",getClass().getName(),classname));
+//                System.out.println(String.format("{%s}\t %s",toString2(),classname));
         }
 //        classLoader = old;
 
@@ -260,15 +226,26 @@ public class SpringBootExtensionsInjector extends ExtensionsInjector {
     }
 
 //    @Override
-    protected void registerExtension0(Class<?> extensionClass) {
-//        System.out.println(String.format("{%s}'registerExtension\t %s",getClass().getName(),extensionClass.getName()));
-//        if(beanFactory.getSingleton(extensionClass.getName())==null){
-//            System.out.println(String.format("{%s}'registerExtension\t getSingleton{%s} is null",getClass().getName(),extensionClass.getName()));
+
+    /**
+     * 注册extension到beanFactory，注意是使用单例模式。
+     * PluginManager在扫描classpath时，系统中的extension类会被发现，系统插件的PluginManager和扩展插件的PluginManager都会发现，因此
+     * 会出现重复注册的问题。此时，如果该extension已经注册过，则忽略
+     * @param extensionClass
+     */
+    private void registerExtension0(Class<?> extensionClass) {
+        System.out.println(String.format("{%s}'registerExtension\t %s",toString2(),extensionClass.getName()));
+        if(beanFactory.getSingleton(extensionClass.getName())==null){
+            System.out.println(String.format("{%s}'registerExtension\t getSingleton{%s} has registered",toString2(),extensionClass.getName()));
         try {
             super.registerExtension(extensionClass);
         }catch (Exception e){
             e.printStackTrace();
         }
-//        }
+        }
+    }
+    
+    private String toString2(){
+        return String.format("%s : %s",this.pluginManager.toString(), this.toString());        
     }
 }

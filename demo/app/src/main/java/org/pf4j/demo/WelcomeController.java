@@ -1,6 +1,7 @@
 package org.pf4j.demo;
 
 import org.pf4j.PluginWrapper;
+import org.pf4j.spring.PluginManagerWithContext;
 import org1.pf4j.demo.api.Greeting;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory;
@@ -18,7 +19,7 @@ public class WelcomeController {
 //    @Autowired
 //    private LoadService loadService;
     @Autowired
-    private SpringBootPluginManager pluginManager;
+    private PluginManagerWithContext pluginManager;
 
     @Autowired
     private List<Greeting> greetings;
@@ -39,8 +40,14 @@ public class WelcomeController {
         sb.append("\r\n<br>****==>"+((AbstractAutowireCapableBeanFactory)pluginManager.getApplicationContext().getAutowireCapableBeanFactory()).getBean("org1.pf4j.demo.welcome.WelcomePlugin$WelcomeGreeting"));
         sb.append("\r\n<br>****==>"+pluginManager.getApplicationContext().getBean("org1.pf4j.demo.welcome.WelcomePlugin$WelcomeGreeting"));
 
-                List<PluginWrapper> pluginWrappers = pluginManager.getStartedPlugins();
-        for(PluginWrapper pw: pluginWrappers){
+        List<PluginWrapper> systemPluginWrappers = pluginManager.getSystemPluginManager().getStartedPlugins();
+        for(PluginWrapper pw: systemPluginWrappers){
+            System.out.println(">> "+pw);
+            sb.append(String.format("\r\n<br/> SystemPluginWrappers {%s}",pw));
+        }
+
+        List<PluginWrapper> extendedPluginWrappers = pluginManager.getExtendedPluginManager().getStartedPlugins();
+        for(PluginWrapper pw: extendedPluginWrappers){
             System.out.println(">> "+pw);
             sb.append(String.format("\r\n<br/> pluginWrappers {%s}",pw));
         }
