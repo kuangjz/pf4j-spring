@@ -1,9 +1,6 @@
 package org.pf4j.demo;
 
-import org.pf4j.ExtensionFactory;
-import org.pf4j.PluginDescriptor;
-import org.pf4j.PluginException;
-import org.pf4j.PluginManager;
+import org.pf4j.*;
 import org.pf4j.spring.SingletonSpringExtensionFactory;
 import org.pf4j.spring.SpringPluginManager;
 import org.slf4j.Logger;
@@ -41,7 +38,9 @@ public class ExtendedPluginManager extends SpringPluginManager {
     protected void validatePluginDescriptor(PluginDescriptor descriptor) throws PluginException {
         super.validatePluginDescriptor(descriptor);
         if(Objects.nonNull(systemPluginManager) && Objects.nonNull(systemPluginManager.getPlugin(descriptor.getPluginId()))){
-            throw new PluginException(String.format("{%s} already exists in SystemPlugin, Ignore ExtendedPlugin {%s} ",descriptor.getPluginId(),descriptor.toString()));
+            PluginWrapper pluginWrapper = systemPluginManager.getPlugin(descriptor.getPluginId());
+            System.out.println(String.format("{%s}'s SystemPlugin which already loaded , Ignore ExtendedPlugin {%s} ",descriptor.getPluginId(),descriptor.toString()));
+            throw new PluginAlreadyLoadedException(pluginWrapper.getPluginId(),pluginWrapper.getPluginPath());
         }
     }
 }

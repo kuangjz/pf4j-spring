@@ -156,6 +156,7 @@ public class SpringBootExtensionsInjector extends ExtensionsInjector {
                                 if (m_d.getAnnotation(RequestMapping.class) != null) {
                                     //创建RequestMappingInfo
                                     RequestMappingInfo mapping_info = (RequestMappingInfo) getMappingForMethod.invoke(requestMappingHandlerMapping, m_d, c);
+                                    mapping_info = mapping_info.paths("/"+plugin.getPluginId()).build().combine(mapping_info);
                                     //注册，先删后注册
                                     requestMappingHandlerMapping.unregisterMapping(mapping_info);
                                     requestMappingHandlerMapping.registerMapping(mapping_info, proxy, m_d);
